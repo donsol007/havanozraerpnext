@@ -1,0 +1,88 @@
+{
+ "charts": [],
+ "content": "[{\"id\":\"e88ADOJ7WC\",\"type\":\"header\",\"data\":{\"text\":\"<span style=\\\"font-size: 18px; letter-spacing: 0.18px;\\\"><b>Havano ZRA information</b></span>\",\"col\":12}},{\"id\":\"BPCv3P3CWh\",\"type\":\"shortcut\",\"data\":{\"shortcut_name\":\"Havano ZRA Settings\",\"col\":3}},{\"id\":\"St7AHbhVOr\",\"type\":\"spacer\",\"data\":{\"col\":12}}]",
+ "creation": "2026-01-25 11:53:39.339730",
+ "custom_blocks": [],
+ "docstatus": 0,
+ "doctype": "Workspace",
+ "for_user": "",
+ "hide_custom": 0,
+ "icon": "setting-gear",
+ "idx": 0,
+ "indicator_color": "green",
+ "is_hidden": 0,
+ "label": "ZRA",
+ "links": [
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Google Services",
+   "link_count": 4,
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Card Break"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Google Settings",
+   "link_count": 0,
+   "link_to": "Google Settings",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Google Contacts",
+   "link_count": 0,
+   "link_to": "Google Contacts",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Google Calendar",
+   "link_count": 0,
+   "link_to": "Google Calendar",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  },
+  {
+   "hidden": 0,
+   "is_query_report": 0,
+   "label": "Google Drive",
+   "link_count": 0,
+   "link_to": "Google Drive",
+   "link_type": "DocType",
+   "onboard": 0,
+   "type": "Link"
+  }
+ ],
+ "modified": "2026-02-20 21:52:10.693327",
+ "modified_by": "Administrator",
+ "module": "Havanozra",
+ "name": "ZRA",
+ "number_cards": [],
+ "owner": "Administrator",
+ "parent_page": "",
+ "public": 1,
+ "quick_lists": [],
+ "restrict_to_domain": "",
+ "roles": [],
+ "sequence_id": 21.1,
+ "shortcuts": [
+  {
+   "color": "Grey",
+   "doc_view": "List",
+   "label": "Havano ZRA Settings",
+   "link_to": "ZRA Information",
+   "type": "DocType"
+  }
+ ],
+ "title": "ZRA"
+}

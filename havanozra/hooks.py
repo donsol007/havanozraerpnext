@@ -97,14 +97,14 @@ app_license = "mit"
 # Name of the app being installed is passed as an argument
 
 # before_app_install = "havanozra.utils.before_app_install"
-# after_app_install = "havanozra.utils.after_app_install"
+after_app_install = "havanozra.install.add_custom_fields"
 
 # Integration Cleanup
 # -------------------
 # To clean up dependencies/integrations with other apps
 # Name of the app being uninstalled is passed as an argument
 
-# before_app_uninstall = "havanozra.utils.before_app_uninstall"
+before_app_uninstall = "havanozra.install.remove_custom_fields"
 # after_app_uninstall = "havanozra.utils.after_app_uninstall"
 
 # Desk Notifications
@@ -136,7 +136,15 @@ app_license = "mit"
 # Document Events
 # ---------------
 # Hook on document methods and events
-
+doc_events = {
+    "Item": {
+        "after_save": "havanozra.api.push_item",
+        "on_update": "havanozra.api.push_item_update"
+    },
+    "Sales Invoice": {
+        "on_submit": "havanozra.api.push_invoice_to_zra"
+    }
+}
 # doc_events = {
 # 	"*": {
 # 		"on_update": "method",
