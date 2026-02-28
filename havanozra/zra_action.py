@@ -1309,14 +1309,737 @@ class HavanoZRALib:
             #return ""
             response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
             
+            if response.status_code == 200:
+                json_obj = response.json()
+                req_date = json_obj.get("resultDt", "")
+                res_sdcId =  json_obj.get("sdcId", "")
+                if req_date != "":
+                    self.update_zra_information("resultDt", str(req_date))
+                    self.update_zra_information("sdcId", str(res_sdcId))
+
             if response.status_code != 200:
-                frappe.log_error(f"Havano ZRA Success Status: {response.status_code}\nResponse: {response.text}", "Havano ZRA: Send Invoice Failed")
-            
+                frappe.log_error(f"Invoice Status", f"Response: {response.text}")
+
             return response.text
 
         except ET.ParseError as e:
             frappe.log_error(frappe.get_traceback(), "Havano ZRA Error Log: Send Invoice XML Parse Error")
+            
             return ""
         except Exception as e:
             frappe.log_error(frappe.get_traceback(), "Havano ZRA Error Log: Send Invoice Error")
+            return ""
+    
+    # ==========================================
+    # Save Purchase
+    # ==========================================
+    def save_purchase(self, invoice_no: int, supplier_tpin: str, supplier_bhf_id: str, 
+                      supplier_name: str, supplier_invoice_no: str, total_item_count: int, 
+                      remark: str, creator_username: str, creator_user_id: str, 
+                      modifier_username: str, modifier_user_id: str, items_xml: str) -> str:
+        tpin = self.get_config_value("tpin")
+        branch_id = self.get_config_value("branch_id")
+        org_sar_no = 0
+        reg_ty_cd = "M"
+        purchase_ty_cd = "02"
+        receipt_ty_cd = "N"
+        payment_ty_cd = "S"
+        purchase_stts_cd = "01"
+        
+        from datetime import datetime
+        confirm_date = datetime.now().strftime("%Y%m%d%H%M%S")
+        purchase_date = datetime.now().strftime("%Y%m%d")
+        
+        cancel_request_date = None
+        cancel_date = None
+        
+        tot_taxbl_amount = Decimal('0')
+        tot_tax_amount = Decimal('0')
+        tot_amount = Decimal('0')
+        total_item_count_val = 0
+
+        item_list = []
+
+        try:
+            root = ET.fromstring(items_xml)
+            item_nodes = root.findall("ITEM")
+            
+            for item_node in item_nodes:
+                total_item_count_val += 1
+                
+                def get_text(tag):
+                    el = item_node.find(tag)
+                    return el.text if el is not None else ""
+
+                seq_no = int(get_text("ItemSeq"))
+                item_code_node = get_text("ItemCd")
+                item_class_code = get_text("ItemClsCd")
+                item_name = get_text("ItemNm")
+                barcode = get_text("Bcd")
+                pkg_unit_code = get_text("PkgUnitCd")
+                package = int(get_text("Pkg"))
+                qty_unit_code = get_text("QtyUnitCd")
+                qty = Decimal(get_text("Qty"))
+                price = Decimal(get_text("Prc"))
+                supply_amount = Decimal(get_text("SplyAmt"))
+                discount_rate = Decimal(get_text("DcRt"))
+                discount_amount = Decimal(get_text("DcAmt"))
+                insurance_company_code = get_text("IsrccCd")
+                insurance_company_name = get_text("IsrccNm")
+                insurance_company_rate = Decimal(get_text("IsrcRt"))
+                insurance_amount = Decimal(get_text("IsrcAmt"))
+                vat_category_code = get_text("VatCatCd")
+                excise_tax_cat_code = get_text("ExciseTxCatCd")
+                tl_cat_code = get_text("TlCatCd")
+                ipl_cat_code = get_text("IplCatCd")
+                vat_taxbl_amt = Decimal(get_text("VatTaxblAmt"))
+                vat_amt = Decimal(get_text("VatAmt"))
+                excise_taxbl_amt = Decimal(get_text("ExciseTaxblAmt"))
+                tl_taxbl_amt = Decimal(get_text("TlTaxblAmt"))
+                ipl_taxbl_amt = Decimal(get_text("IplTaxblAmt"))
+                ipl_amt = Decimal(get_text("IplAmt"))
+                tl_amt = Decimal(get_text("TlAmt"))
+                excise_tx_amt = Decimal(get_text("ExciseTxAmt"))
+                tot_amount_item = Decimal(get_text("TotAmt"))
+
+                tot_amount += tot_amount_item
+                
+                if vat_category_code == "A":
+                    tot_taxbl_amount += vat_taxbl_amt
+                    tot_tax_amount += vat_amt
+                if vat_category_code == "B":
+                    tot_taxbl_amount += vat_taxbl_amt
+                    tot_tax_amount += vat_amt
+                if vat_category_code == "C1":
+                    tot_taxbl_amount += vat_taxbl_amt
+                if vat_category_code == "C2":
+                    tot_taxbl_amount += vat_taxbl_amt
+                if vat_category_code == "C3":
+                    tot_taxbl_amount += vat_taxbl_amt
+
+                # Note: C# logic assigns itemCd = itemClassCode
+                itm = SavePurchase_ItemList(
+                    itemSeq=seq_no,
+                    itemCd=item_class_code, 
+                    itemClsCd=item_class_code,
+                    itemNm=item_name,
+                    bcd=barcode,
+                    pkgUnitCd=pkg_unit_code,
+                    pkg=package,
+                    qtyUnitCd=qty_unit_code,
+                    qty=qty,
+                    prc=price,
+                    splyAmt=supply_amount,
+                    dcRt=discount_rate,
+                    dcAmt=discount_amount,
+                    vatCatCd=vat_category_code,
+                    exciseCatCd=excise_tax_cat_code,
+                    tlCatCd=tl_cat_code,
+                    iplCatCd=ipl_cat_code,
+                    taxblAmt=vat_taxbl_amt,
+                    taxAmt=vat_amt,
+                    exciseTaxblAmt=excise_taxbl_amt,
+                    tlTaxblAmt=tl_taxbl_amt,
+                    iplTaxblAmt=ipl_taxbl_amt,
+                    iplAmt=ipl_amt,
+                    tlAmt=tl_amt,
+                    exciseTxAmt=excise_tx_amt,
+                    totAmt=tot_amount_item
+                )
+                item_list.append(itm)
+
+            save_purchase_obj = SavePurchase(
+                tpin=tpin,
+                bhfId=branch_id,
+                invcNo=invoice_no,
+                orgInvcNo=0,
+                spplrTpin=None, # C# passed null arguments
+                spplrBhfId=None,
+                spplrNm=None,
+                spplrInvcNo=None,
+                regTyCd=reg_ty_cd,
+                pchsTyCd=purchase_ty_cd,
+                rcptTyCd=receipt_ty_cd,
+                pmtTyCd=payment_ty_cd,
+                pchsSttsCd=purchase_stts_cd,
+                pchsDt=purchase_date,
+                cnclReqDt=cancel_request_date,
+                cnclDt=cancel_date,
+                totItemCnt=total_item_count_val,
+                totTaxblAmt=tot_taxbl_amount,
+                totTaxAmt=tot_tax_amount,
+                totAmt=tot_amount,
+                remark=remark,
+                regrId=creator_user_id,
+                regrNm=creator_username,
+                modrNm=modifier_username,
+                modrId=modifier_username,
+                itemList=item_list
+            )
+
+            # Serialize
+            def serialize(obj):
+                if isinstance(obj, Decimal):
+                    return str(obj)
+                if isinstance(obj, list):
+                    return [serialize(i) for i in obj]
+                if hasattr(obj, '__dict__'):
+                    return {k: serialize(v) for k, v in obj.__dict__.items()}
+                return obj
+            
+            payload = serialize(save_purchase_obj)
+            
+            endpoint = "/trnsPurchase/savePurchase"
+            url = self.get_server() + endpoint
+            
+            response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
+            
+            if response.status_code == 200:
+                json_obj = response.json()
+                res_msg = response.text
+                if self._is_result_succeeded(json.dumps(json_obj)):
+                    req_date = json_obj.get("resultDt", "")
+                    if req_date != "":
+                        self.update_zra_information("resultDt", req_date)
+                frappe.log_error(f"Save Purchase Item Req. Status", f"Response: {res_msg}")
+
+            else:
+                frappe.log_error(f"Save Purchase Item Req. Error", f"Response: {response.text}")
+
+            return response.text
+
+        except Exception as e:
+            frappe.log_error(frappe.get_traceback(), "Havano ZRA: Save Purchase")
+            return ""
+
+    # ==========================================
+    # Save Stock Item
+    # ==========================================
+    def save_stock_item(self, cis_invoice_no: str, customer_tpin: str, customer_name: str, 
+                        total_item_count: int, remark: str, creator_username: str, 
+                        creator_user_id: str, modifier_username: str, modifier_user_id: str, 
+                        items_xml: str) -> str:
+        tpin = self.get_config_value("tpin")
+        branch_id = self.get_config_value("branch_id")
+        sar_no = 1
+        org_sar_no = 0
+        reg_ty_cd = "M"
+        sar_ty_cd = "02"
+        
+        from datetime import datetime
+        ocrn_date = datetime.now().strftime("%Y%m%d")
+        
+        tot_taxbl_amount = Decimal('0')
+        tot_tax_amount = Decimal('0')
+        tot_amount = Decimal('0')
+        total_item_count_val = 0
+
+        item_list = []
+
+        try:
+            root = ET.fromstring(items_xml)
+            item_nodes = root.findall("ITEM")
+            
+            for item_node in item_nodes:
+                total_item_count_val += 1
+                
+                def get_text(tag):
+                    el = item_node.find(tag)
+                    return el.text if el is not None else ""
+
+                seq_no = int(get_text("ItemSeq"))
+                item_code_node = get_text("ItemCd")
+                item_class_code = get_text("ItemClsCd")
+                item_name = get_text("ItemNm")
+                barcode = get_text("Bcd")
+                pkg_unit_code = get_text("PkgUnitCd")
+                package = int(get_text("Pkg"))
+                qty_unit_code = get_text("QtyUnitCd")
+                qty = Decimal(get_text("Qty"))
+                price = Decimal(get_text("Prc"))
+                supply_amount = Decimal(get_text("SplyAmt"))
+                discount_amount = Decimal(get_text("DcAmt"))
+                vat_category_code = get_text("VatCatCd")
+                vat_taxbl_amt = Decimal(get_text("VatTaxblAmt"))
+                vat_amt = Decimal(get_text("VatAmt"))
+                tot_amount_item = Decimal(get_text("TotAmt"))
+
+                tot_amount += tot_amount_item
+                
+                if vat_category_code == "A":
+                    tot_taxbl_amount += vat_taxbl_amt
+                    tot_tax_amount += vat_amt
+                if vat_category_code == "B":
+                    tot_taxbl_amount += vat_taxbl_amt
+                    tot_tax_amount += vat_amt
+                if vat_category_code == "C1":
+                    tot_taxbl_amount += vat_taxbl_amt
+                if vat_category_code == "C2":
+                    tot_taxbl_amount += vat_taxbl_amt
+                if vat_category_code == "C3":
+                    tot_taxbl_amount += vat_taxbl_amt
+
+                # C# Logic: itemCd = itemClassCode
+                itm = SaveStockItems_ItemList(
+                    itemSeq=seq_no,
+                    itemCd=item_class_code,
+                    itemClsCd=item_class_code,
+                    itemNm=item_name,
+                    bcd=barcode,
+                    pkgUnitCd=pkg_unit_code,
+                    pkg=package,
+                    qtyUnitCd=qty_unit_code,
+                    qty=qty,
+                    prc=price,
+                    splyAmt=supply_amount,
+                    totDcAmt=discount_amount,
+                    taxblAmt=vat_taxbl_amt,
+                    vatCatCd=vat_category_code,
+                    taxAmt=vat_amt,
+                    totAmt=tot_amount_item
+                )
+                item_list.append(itm)
+
+            save_stock_item_obj = SaveStockItems(
+                tpin=tpin,
+                bhfId=branch_id,
+                sarNo=sar_no,
+                orgSarNo=org_sar_no,
+                regTyCd=reg_ty_cd,
+                custTpin=customer_tpin,
+                custNm=customer_name,
+                custBhfId=None,
+                sarTyCd=sar_ty_cd,
+                ocrnDt=ocrn_date,
+                totItemCnt=total_item_count_val,
+                totTaxblAmt=tot_taxbl_amount,
+                totTaxAmt=tot_tax_amount,
+                totAmt=tot_amount,
+                remark=remark,
+                regrId=creator_user_id,
+                regrNm=creator_username,
+                modrNm=modifier_username,
+                modrId=modifier_username,
+                itemList=item_list
+            )
+
+            # Serialize
+            def serialize(obj):
+                if isinstance(obj, Decimal):
+                    return str(obj)
+                if isinstance(obj, list):
+                    return [serialize(i) for i in obj]
+                if hasattr(obj, '__dict__'):
+                    return {k: serialize(v) for k, v in obj.__dict__.items()}
+                return obj
+
+            payload = serialize(save_stock_item_obj)
+            
+            endpoint = "/stock/saveStockItems"
+            url = self.get_server() + endpoint
+            
+            response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
+            
+            if response.status_code == 200:
+                json_obj = response.json()
+                res_msg = response.text
+                if self._is_result_succeeded(json.dumps(json_obj)):
+                    req_date = json_obj.get("resultDt", "")
+                    if req_date != "":
+                        self.update_zra_information("resultDt", req_date)
+                frappe.log_error(f"Save Stock Item Req. Status", f"Response: {res_msg}")
+                
+            else:
+                frappe.log_error(f"Save Stock Item Error", f"Response: {response.text}")
+
+            return response.text
+
+        except Exception as e:
+            frappe.log_error(frappe.get_traceback(), "Havano ZRA: Save Stock Item")
+            return ""
+
+    # ==========================================
+    # Save Stock Master
+    # ==========================================
+    def save_stock_master(self, creator_username: str, creator_user_id: str, items_xml: str) -> str:
+        tpin = self.get_config_value("tpin")
+        branch_id = self.get_config_value("branch_id")
+        
+        item_list = []
+
+        try:
+            root = ET.fromstring(items_xml)
+            item_nodes = root.findall("ITEM")
+            
+            for item_node in item_nodes:
+                def get_text(tag):
+                    el = item_node.find(tag)
+                    return el.text if el is not None else ""
+ 
+                item_code = get_text("ItemCd")
+                rqty = get_text("Rqty")
+
+                itm = StockMaster_StockItemList(
+                    itemCd=item_code,
+                    rsdQty=int(float(rqty))
+                )
+                item_list.append(itm)
+
+            stock_master_obj = StockMaster(
+                tpin=tpin,
+                bhfId=branch_id,
+                regrId=creator_user_id,
+                regrNm=creator_username,
+                modrNm=creator_user_id,
+                modrId=creator_user_id,
+                stockItemList=item_list
+            )
+
+            # Serialize
+            def serialize(obj):
+                if isinstance(obj, Decimal):
+                    return str(obj)
+                if isinstance(obj, list):
+                    return [serialize(i) for i in obj]
+                if hasattr(obj, '__dict__'):
+                    return {k: serialize(v) for k, v in obj.__dict__.items()}
+                return obj
+
+            payload = serialize(stock_master_obj)
+            
+            endpoint = "/stockMaster/saveStockMaster"
+            url = self.get_server() + endpoint
+            
+            response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
+            
+            if response.status_code == 200:
+                json_obj = response.json()
+                res_msg = response.text
+                if self._is_result_succeeded(json.dumps(json_obj)):
+                    req_date = json_obj.get("resultDt", "")
+                    if req_date != "":
+                        self.update_zra_information("resultDt", req_date)
+                frappe.log_error(f"Save Stock Master Req. Status", f"Response: {res_msg}")
+                
+            else:
+                frappe.log_error(f"Save Stock Master Req. Error", f"Response: {response.text}")
+
+            return response.text
+
+        except Exception as e:
+            frappe.log_error(frappe.get_traceback(), "Havano ZRA: Save Stock Master")
+            return ""
+
+    # ==========================================
+    # Send Credit Note
+    # ==========================================
+    def send_credit_note(self, original_invoice_no: int, cis_invoice_no: str, customer_tpin: str, 
+                         customer_name: str, total_item_count: int, remark: str, creator_username: str, 
+                         creator_user_id: str, modifier_username: str, modifier_user_id: str, 
+                         lpo_number: str, currency_code: str, exchange_rate: str, 
+                         destn_country_code: str, ref_reason: str, items_xml: str) -> str:
+        
+        # ===============Prepare Credit Note========
+        tpin = self.get_config_value("tpin")
+        branch_id = self.get_config_value("branch_id")
+        org_sdc_id = self.get_config_value("sdcId")
+        sales_type_code = "N"
+        receipt_type_code = "R"  # R for Credit Note/Receipt
+        payment_type_code = "01"
+        sales_status_code = "02"
+        
+        from datetime import datetime
+        now = datetime.now()
+        confirm_date = now.strftime("%Y%m%d%H%M%S")
+        sales_date = now.strftime("%Y%m%d")
+        stock_release_date = None
+        cancel_request_date = None
+        cancel_date = None
+        refund_date = now.strftime("%Y%m%d%H%M%S")
+        refund_reason = "06"
+        
+        total_item_count_val = 0
+        
+        taxable_amt_a = Decimal('0')
+        taxable_amt_b = Decimal('0')
+        taxable_amt_c1 = Decimal('0')
+        taxable_amt_c2 = Decimal('0')
+        taxable_amt_c3 = Decimal('0')
+        taxable_amt_d = Decimal('0')
+        taxable_amt_rvat = Decimal('0')
+        taxable_amt_e = Decimal('0')
+        taxable_amt_f = Decimal('0')
+        taxable_amt_ipl1 = Decimal('0')
+        taxable_amt_ipl2 = Decimal('0')
+        taxable_amt_tl = Decimal('0')
+        taxable_amt_ecm = Decimal('0')
+        taxable_amt_exeeg = Decimal('0')
+        taxable_amt_tot = Decimal('0')
+        
+        tax_rate_a = Decimal('16')
+        tax_rate_b = Decimal('16')
+        tax_rate_c1 = Decimal('0')
+        tax_rate_c2 = Decimal('0')
+        tax_rate_c3 = Decimal('0')
+        tax_rate_d = Decimal('0')
+        tax_rate_rvat = Decimal('16')
+        tax_rate_e = Decimal('0')
+        tax_rate_f = Decimal('10')
+        tax_rate_ipl1 = Decimal('5')
+        tax_rate_ipl2 = Decimal('0')
+        tax_rate_tl = Decimal('1.5')
+        tax_rate_ecm = Decimal('5')
+        tax_rate_exeeg = Decimal('3')
+        tax_rate_tot = Decimal('0')
+        
+        tax_amount_a = Decimal('0')
+        tax_amount_b = Decimal('0')
+        tax_amount_c1 = Decimal('0')
+        tax_amount_c2 = Decimal('0')
+        tax_amount_c3 = Decimal('0')
+        tax_amount_d = Decimal('0')
+        tax_amount_rvat = Decimal('0')
+        tax_amount_e = Decimal('0')
+        tax_amount_f = Decimal('0')
+        tax_amount_ipl1 = Decimal('0')
+        tax_amount_ipl2 = Decimal('0')
+        tax_amount_tl = Decimal('0')
+        tax_amount_ecm = Decimal('0')
+        tax_amount_exeeg = Decimal('0')
+        tax_amount_tot = Decimal('0')
+        
+        tot_taxbl_amount = Decimal('0')
+        tot_tax_amount = Decimal('0')
+        tot_amount = Decimal('0')
+        
+        purchase_acceptance_yn = "Y"
+        sale_city_cd = "1"
+        debit_reason_code = None
+        invoice_adjustment_reason = ref_reason
+
+        item_list = []
+
+        try:
+            root = ET.fromstring(items_xml)
+            item_nodes = root.findall("ITEM")
+            
+            for item_node in item_nodes:
+                total_item_count_val += 1
+                
+                def get_text(tag):
+                    el = item_node.find(tag)
+                    return el.text if el is not None else ""
+
+                seq_no = int(get_text("ItemSeq"))
+                item_code_node = get_text("ItemCd")
+                item_class_code = get_text("ItemClsCd")
+                item_name = get_text("ItemNm")
+                barcode = get_text("Bcd")
+                pkg_unit_code = get_text("PkgUnitCd")
+                package = int(get_text("Pkg"))
+                qty_unit_code = get_text("QtyUnitCd")
+                qty = Decimal(get_text("Qty"))
+                price = Decimal(get_text("Prc"))
+                supply_amount = Decimal(get_text("SplyAmt"))
+                discount_rate = Decimal(get_text("DcRt"))
+                discount_amount = Decimal(get_text("DcAmt"))
+                insurance_company_code = get_text("IsrccCd")
+                insurance_company_name = get_text("IsrccNm")
+                insurance_company_rate = Decimal(get_text("IsrcRt"))
+                insurance_amount = Decimal(get_text("IsrcAmt"))
+                vat_category_code = get_text("VatCatCd")
+                excise_tax_cat_code = get_text("ExciseTxCatCd")
+                tl_cat_code = get_text("TlCatCd")
+                ipl_cat_code = get_text("IplCatCd")
+                vat_taxbl_amt = Decimal(get_text("VatTaxblAmt"))
+                vat_amt = Decimal(get_text("VatAmt"))
+                excise_taxbl_amt = Decimal(get_text("ExciseTaxblAmt"))
+                tl_taxbl_amt = Decimal(get_text("TlTaxblAmt"))
+                ipl_taxbl_amt = Decimal(get_text("IplTaxblAmt"))
+                ipl_amt = Decimal(get_text("IplAmt"))
+                tl_amt = Decimal(get_text("TlAmt"))
+                excise_tx_amt = Decimal(get_text("ExciseTxAmt"))
+                tot_amount_item = Decimal(get_text("TotAmt"))
+
+                tot_amount += tot_amount_item
+                
+                if vat_category_code == "A":
+                    taxable_amt_a += vat_taxbl_amt
+                    tax_amount_a += vat_amt
+                    tot_taxbl_amount += vat_taxbl_amt
+                    tot_tax_amount += vat_amt
+                
+                if vat_category_code == "B":
+                    taxable_amt_b += vat_taxbl_amt
+                    tax_amount_b += vat_amt
+                    tot_taxbl_amount += vat_taxbl_amt
+                    tot_tax_amount += vat_amt
+
+                if vat_category_code == "C1":
+                    taxable_amt_c1 += vat_taxbl_amt
+                    tax_amount_c1 += vat_amt
+                    tot_taxbl_amount += vat_taxbl_amt
+
+                if vat_category_code == "C2":
+                    taxable_amt_c2 += vat_taxbl_amt
+                    tax_amount_c2 += vat_amt
+                    tot_taxbl_amount += vat_taxbl_amt
+
+                if vat_category_code == "C3":
+                    taxable_amt_c3 += vat_taxbl_amt
+                    tax_amount_c3 += vat_amt
+                    tot_taxbl_amount += vat_taxbl_amt
+
+                itm = CreditNoteItem(
+                    itemSeq=seq_no,
+                    itemCd=item_class_code, # C#: itemCd = itemClassCode
+                    itemClsCd=item_class_code,
+                    itemNm=item_name,
+                    bcd=barcode,
+                    pkgUnitCd=pkg_unit_code,
+                    pkg=Decimal(package),
+                    qtyUnitCd=qty_unit_code,
+                    qty=qty,
+                    prc=price,
+                    splyAmt=supply_amount,
+                    dcRt=discount_rate,
+                    dcAmt=discount_amount,
+                    isrccCd=insurance_company_code,
+                    isrccNm=insurance_company_name,
+                    isrcRt=insurance_company_rate,
+                    isrcAmt=insurance_amount,
+                    vatCatCd=vat_category_code,
+                    exciseTxCatCd=excise_tax_cat_code,
+                    tlCatCd=tl_cat_code,
+                    iplCatCd=ipl_cat_code,
+                    vatTaxblAmt=vat_taxbl_amt,
+                    vatAmt=vat_amt,
+                    exciseTaxblAmt=excise_taxbl_amt,
+                    tlTaxblAmt=tl_taxbl_amt,
+                    iplTaxblAmt=ipl_taxbl_amt,
+                    iplAmt=ipl_amt,
+                    tlAmt=tl_amt,
+                    exciseTxAmt=excise_tx_amt,
+                    totAmt=tot_amount_item
+                )
+                item_list.append(itm)
+
+            credit_note = CreditNote(
+                tpin=tpin,
+                bhfId=branch_id,
+                orgSdcId=org_sdc_id,
+                orgInvcNo=original_invoice_no,
+                cisInvcNo=cis_invoice_no,
+                custTpin=customer_tpin,
+                custNm=customer_name,
+                salesTyCd=sales_type_code,
+                rcptTyCd=receipt_type_code,
+                pmtTyCd=payment_type_code,
+                salesSttsCd=sales_status_code,
+                cfmDt=confirm_date,
+                salesDt=sales_date,
+                stockRlsDt=stock_release_date,
+                cnclReqDt=cancel_request_date,
+                cnclDt=cancel_date,
+                rfdDt=refund_date,
+                rfdRsnCd=refund_reason,
+                totItemCnt=total_item_count_val,
+                taxblAmtA=taxable_amt_a,
+                taxblAmtB=taxable_amt_b,
+                taxblAmtC1=taxable_amt_c1,
+                taxblAmtC2=taxable_amt_c2,
+                taxblAmtC3=taxable_amt_c3,
+                taxblAmtD=taxable_amt_d,
+                taxblAmtRvat=taxable_amt_rvat,
+                taxblAmtE=taxable_amt_e,
+                taxblAmtF=taxable_amt_f,
+                taxblAmtIpl1=taxable_amt_ipl1,
+                taxblAmtIpl2=taxable_amt_ipl2,
+                taxblAmtTl=taxable_amt_tl,
+                taxblAmtEcm=taxable_amt_ecm,
+                taxblAmtExeeg=taxable_amt_exeeg,
+                taxblAmtTot=taxable_amt_tot,
+                taxRtA=tax_rate_a,
+                taxRtB=tax_rate_b,
+                taxRtC1=tax_rate_c1,
+                taxRtC2=tax_rate_c2,
+                taxRtC3=tax_rate_c3,
+                taxRtD=tax_rate_d,
+                taxRtRvat=tax_rate_rvat,
+                taxRtE=tax_rate_e,
+                taxRtF=tax_rate_f,
+                taxRtIpl1=tax_rate_ipl1,
+                taxRtIpl2=tax_rate_ipl2,
+                taxRtTl=tax_rate_tl,
+                taxRtEcm=tax_rate_ecm,
+                taxRtExeeg=tax_rate_exeeg,
+                taxRtTot=tax_rate_tot,
+                taxAmtA=tax_amount_a,
+                taxAmtB=tax_amount_b,
+                taxAmtC1=tax_amount_c1,
+                taxAmtC2=tax_amount_c2,
+                taxAmtC3=tax_amount_c3,
+                taxAmtD=tax_amount_d,
+                taxAmtRvat=tax_amount_rvat,
+                taxAmtE=tax_amount_e,
+                taxAmtF=tax_amount_f,
+                taxAmtIpl1=tax_amount_ipl1,
+                taxAmtIpl2=tax_amount_ipl2,
+                taxAmtTl=tax_amount_tl,
+                taxAmtEcm=tax_amount_ecm,
+                taxAmtExeeg=tax_amount_exeeg,
+                taxAmtTot=tax_amount_tot,
+                totTaxblAmt=tot_taxbl_amount,
+                totTaxAmt=tot_tax_amount,
+                totAmt=tot_amount,
+                prchrAcptcYn=purchase_acceptance_yn,
+                remark=remark,
+                regrNm=creator_username,
+                regrId=creator_user_id,
+                modrNm=modifier_username,
+                modrId=modifier_username,
+                saleCtyCd=sale_city_cd,
+                lpoNumber=lpo_number,
+                currencyTyCd=currency_code,
+                exchangeRt=exchange_rate,
+                destnCountryCd=destn_country_code,
+                dbtRsnCd=debit_reason_code,
+                invcAdjustReason=invoice_adjustment_reason,
+                itemList=item_list
+            )
+
+            # Serialize
+            def serialize(obj):
+                if isinstance(obj, Decimal):
+                    return str(obj)
+                if isinstance(obj, list):
+                    return [serialize(i) for i in obj]
+                if hasattr(obj, '__dict__'):
+                    return {k: serialize(v) for k, v in obj.__dict__.items()}
+                return obj
+
+            payload = serialize(credit_note)
+            
+            # Send Invoice (Endpoint is same for Sales and Credit Note)
+            endpoint = "trnsSales/saveSales"
+            url = self.get_server() + endpoint
+            
+            response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
+            
+            if response.status_code == 200:
+                json_obj = response.json()
+                res_msg = response.text
+                if self._is_result_succeeded(json.dumps(json_obj)):
+                    req_date = json_obj.get("resultDt", "")
+                    if req_date != "":
+                        self.update_zra_information("resultDt", req_date)
+                frappe.log_error(f"Send CreditNote Req. Status for {cis_invoice_no}", f"Response: {res_msg}")
+                
+            else:
+                frappe.log_error(f"Send Credit Note Error", f"Response: {response.text}")
+
+            return response.text
+
+        except Exception as e:
+            frappe.log_error(frappe.get_traceback(), "Havano ZRA: Send Credit Note")
             return ""

@@ -1,6 +1,9 @@
 import frappe
 from frappe import _, msgprint, throw
 import json
+import qrcode
+import base64
+from io import BytesIO
 from havanozra.zra_action import HavanoZRALib
 
 
@@ -182,6 +185,32 @@ def push_item_update(doc, method):
             "status": "error",
             "message": str(e)
         }
+def get_exchange_rate(from_currency: str, to_currency: str):
+    if from_currency == to_currency:
+        return 1
+    exchange_rate = frappe.db.get_value(
+        "Currency Exchange",
+        {
+            "from_currency": from_currency,
+            "to_currency": to_currency
+        },
+        "exchange_rate"
+    )
+
+    if not exchange_rate:
+        frappe.throw(f"No exchange rate found for {from_currency} to {to_currency}")
+    return exchange_rate
+
+def get_current_item_qty(item_code: str):
+    qty = frappe.db.get_value(
+        "Bin",
+        {
+            "item_code": item_code
+        },
+        "actual_qty"
+    )
+    return qty or 0
+
 def push_invoice_to_zra(doc, method):
     print("Preparing to send Invoice to ZRA.....")
     
@@ -196,7 +225,15 @@ def push_invoice_to_zra(doc, method):
     cis_invoice_no = doc.name
     customer_name = doc.customer_name
     currency_code = doc.currency
-    
+    iscreditnote = doc.is_return
+    invoice_receiptno = ""
+    if iscreditnote:
+        print (f"Credit note: {iscreditnote}")
+        invoice_cr = frappe.get_all("Sales Invoice",
+    filters={"name": cis_invoice_no},fields=["custom_receiptno"]
+    )
+        for inv in invoice_cr:
+            invoice_receiptno = inv.custom_receiptno
     customer_tpin = frappe.db.get_value("Customer", doc.customer, "custom_customer_tpin")
     
     xml_string = "<ITEMS>"
@@ -240,28 +277,29 @@ def push_invoice_to_zra(doc, method):
             fields=["tax_category", "maximum_net_rate"])
             
             tax_category = None
-            max_net_rate = 0.0
+            tax_rate = 0.0
             
             if tax_info and len(tax_info) > 0:
                 tax_category = tax_info[0].tax_category
-                max_net_rate = float(tax_info[0].maximum_net_rate or 0)
-                max_net_rate = max_net_rate / 100
+                tax_rate = float(tax_info[0].maximum_net_rate or 0)
+                tax_rate = tax_rate / 100
 
             if tax_category is None:
                 msgprint("Tax Information is missing for one or more Item, Please update Item Tax Information")
                 return  "Cannot send invoice to zimra"
             
             # Calculate VAT (tax is inclusive in price)
-            tax_rate = max_net_rate / 100
+
             vat_amt = item.amount * tax_rate / (1 + tax_rate)
-        
-            item_total = round(item.amount,2)
-            vat_amt = round(vat_amt,2)
+            print(item.amount)
+            item_total = round(item.amount,4)
+            vat_amt = round(vat_amt,4)
+            print(vat_amt)
             
             
             # If tax exclusive, logic changes, but following VB 'Inclusive' assumption:
             supply_amount = item.amount - vat_amt
-            supply_amount = round(supply_amount,2)
+            supply_amount = round(supply_amount,4)
             # Defaults for non-VAT taxes (as per VB guide)
             excise_taxbl_amt = "0.0"
             tl_taxbl_amt = "0.0"
@@ -287,7 +325,7 @@ def push_invoice_to_zra(doc, method):
                 <QtyUnitCd>{item_puc}</QtyUnitCd>
                 <Qty>{item.qty or 0}</Qty>
                 <Prc>{item.rate or 0}</Prc>
-                <SplyAmt>{supply_amount or 0}</SplyAmt>
+                <SplyAmt>{item.amount }</SplyAmt>
                 <DcRt>{discount_rate}</DcRt>
                 <DcAmt>{discount_amt}</DcAmt>
                 <IsrccCd></IsrccCd>
@@ -307,6 +345,7 @@ def push_invoice_to_zra(doc, method):
                 <TlAmt>{tl_amt}</TlAmt>
                 <ExciseTxAmt>{excise_tx_amt}</ExciseTxAmt>
                 <TotAmt>{item_total or 0}</TotAmt>
+                 <Rqty>{get_current_item_qty(item.item_code)}</Rqty>
             </ITEM>
             """
             xml_string += item_xml
@@ -315,8 +354,10 @@ def push_invoice_to_zra(doc, method):
 
         # 5. Call ZRA Send Invoice
         frappe.log_error(f"Havano ZRA Log", f"Attempting to Send Invoice {cis_invoice_no}")
-        
-        response_json = zra_lib.send_invoice(
+        ex_rate = get_exchange_rate(currency_code, "ZMW")
+        response_json = ""
+        if iscreditnote:
+            response_json = zra_lib.send_credit_note(invoice_receiptno,
             cis_invoice_no=cis_invoice_no,
             customer_tpin=customer_tpin,
             customer_name=customer_name,
@@ -328,28 +369,72 @@ def push_invoice_to_zra(doc, method):
             modifier_user_id=modifier_user_id,
             lpo_number=None,
             currency_code=currency_code,
-            exchange_rate="1", # Assuming default 1 if not provided, or pull from doc
+            exchange_rate=ex_rate, # Assuming default 1 if not provided, or pull from doc
+            destn_country_code=None,
+            ref_reason = "Customer Return",
+            items_xml=xml_string
+            )
+        else:
+            response_json = zra_lib.send_invoice(
+            cis_invoice_no=cis_invoice_no,
+            customer_tpin=customer_tpin,
+            customer_name=customer_name,
+            total_item_count=total_item_count,
+            remark=None,
+            creator_username=creator_username,
+            creator_user_id=creator_user_id,
+            modifier_username=modifier_username,
+            modifier_user_id=modifier_user_id,
+            lpo_number=None,
+            currency_code=currency_code,
+            exchange_rate=ex_rate, # Assuming default 1 if not provided, or pull from doc
             destn_country_code=None,
             items_xml=xml_string
-        )
+            )
 
-        # 6. Parse Response
+        # Parse Response
         response_data = json.loads(response_json)
         result_msg = response_data.get("resultMsg")
         result_cd = response_data.get("resultCd")
         
         if result_msg == "It is succeeded" or result_cd == "000":
-            frappe.log_error(f"Havano ZRA Log", f"Successfully Sent Invoice {cis_invoice_no}")
+            frappe.log_error(f"Havano ZRA Invoice Sent for {cis_invoice_no}", f"Response: {response_data}")
             
-            # Extracting details from ZRA response (based on VB guide)
-            # Note: Ensure your Python library's SendInvoice parses these fields correctly
             if response_data.get("data"):
                 zra_rcpt_no = response_data["data"].get("rcptNo")
                 zra_qr_code = response_data["data"].get("qrCodeUrl")
+                update_sales_invoice(cis_invoice_no,zra_rcpt_no,zra_qr_code)
+            #Save Stock Section
+            save_stock_response_json = zra_lib.save_stock_item(
+            cis_invoice_no=cis_invoice_no,
+            customer_tpin=customer_tpin,
+            customer_name=customer_name,
+            total_item_count=total_item_count,
+            remark=None,
+            creator_username=creator_username,
+            creator_user_id=creator_user_id,
+            modifier_username=modifier_username,
+            modifier_user_id=modifier_user_id,
+            items_xml=xml_string
+            )
+            
+            response_data_save_stock = json.loads(save_stock_response_json)
+            result_msg_save_stock = response_data.get("resultMsg")
+  
+            #if result_msg_save_stock == "It is succeeded":
+            #SaveStockMaster Section
+            stock_master_response_json = zra_lib.save_stock_master(
+            creator_username=creator_username,
+            creator_user_id=creator_user_id,
+            items_xml=xml_string
+            )
+            
+            response_data_save_stock = json.loads(stock_master_response_json)
+            result_msg_stock_master = response_data.get("resultMsg")
+            
+            
                 
-                # Update Frappe Doc with ZRA details
-                # doc.db_set("custom_zra_receipt_no", zra_rcpt_no)
-                # doc.db_set("custom_zra_qr_code", zra_qr_code)
+               
                 
             return {
                 "status": "success",
@@ -366,7 +451,7 @@ def push_invoice_to_zra(doc, method):
             }
 
     except json.JSONDecodeError:
-        frappe.log_error(f"Invalid JSON response from ZRA: {response_json}", "ZRA Send Invoice Failed")
+        frappe.log_error(f"Invalid JSON response from ZRA", f"ZRA Send Invoice Failed: {{response_json}}")
         return {
             "status": "error",
             "message": "Invalid response received from ZRA server.",
@@ -379,3 +464,39 @@ def push_invoice_to_zra(doc, method):
             "status": "error",
             "message": str(e)
         }
+
+def generate_qr_base64(data: str) -> str:
+    """Generate a base64-encoded PNG image from the given data string."""
+    qr = qrcode.QRCode(version=1, box_size=10, border=4)
+    qr.add_data(data)
+    qr.make(fit=True)
+    img = qr.make_image(fill="black", back_color="white")
+    
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    img_base64 = base64.b64encode(buffered.getvalue()).decode("utf-8")
+    
+    return f"data:image/png;base64,{img_base64}"
+
+def update_sales_invoice(invoice_name: str, receipt_no: str,  qr_code_data: str):
+    try:
+        sales_invoice = frappe.get_doc("Sales Invoice", invoice_name)
+        qr_base64 = generate_qr_base64(qr_code_data)
+        
+        #Update custom fields
+        if receipt_no is None:
+            zra_status = None
+        else:
+            zra_status=1
+        sales_invoice.custom_zra_status = zra_status
+        sales_invoice.custom_receiptno = receipt_no
+        sales_invoice.custom_qr_code = qr_base64  # You can also store just the base64 string
+        
+        # Save and commit
+        sales_invoice.save(ignore_permissions=True)
+        frappe.db.commit()
+        return True
+    except Exception as e:
+        frappe.log_error(frappe.get_traceback(), "Failed to update Sales Invoice")
+        frappe.msgprint(f"Error: {e}")
+        return False
