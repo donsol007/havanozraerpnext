@@ -30,7 +30,7 @@ CUSTOM_FIELDS = [
         "doctype": "Custom Field",
         "dt": "Sales Invoice",
         "insert_after": "custom_receiptno",
-        "fieldname": "custom_zra_status",
+        "fieldname": "custom_zrastatus",
         "label": "zra status",
         "fieldtype": "Data",
         "allow_on_submit": 1,
