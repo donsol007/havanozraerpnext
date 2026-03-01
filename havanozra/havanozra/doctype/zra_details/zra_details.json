@@ -1,19 +1,19 @@
 {
  "actions": [],
  "allow_rename": 1,
- "creation": "2026-01-25 11:40:57.086665",
+ "creation": "2026-03-01 08:24:19.490054",
  "doctype": "DocType",
  "engine": "InnoDB",
  "field_order": [
-  "user_zra_information_section",
+  "device_zra_fiscalization_information_section",
   "tpin",
   "branch_id",
   "device_serial_number",
   "zra_server_url",
   "result_date",
-  "column_break_edye",
   "sdcid",
   "mrcno",
+  "column_break_deow",
   "lastpchsinvcno",
   "lastsalercptno",
   "lastinvcno",
@@ -23,6 +23,11 @@
   "lastcopyinvcno"
  ],
  "fields": [
+  {
+   "fieldname": "device_zra_fiscalization_information_section",
+   "fieldtype": "Section Break",
+   "label": "Device ZRA Fiscalization Information"
+  },
   {
    "fieldname": "tpin",
    "fieldtype": "Data",
@@ -54,88 +59,64 @@
   {
    "fieldname": "result_date",
    "fieldtype": "Data",
-   "in_list_view": 1,
    "label": "Result Date",
    "reqd": 1
-  },
-  {
-   "fieldname": "user_zra_information_section",
-   "fieldtype": "Section Break",
-   "label": "User ZRA Tax Information"
-  },
-  {
-   "fieldname": "column_break_edye",
-   "fieldtype": "Column Break"
   },
   {
    "fieldname": "sdcid",
    "fieldtype": "Data",
    "hidden": 1,
-   "in_list_view": 1,
-   "label": "sdcId",
-   "read_only": 1
+   "label": "sdcId"
   },
   {
    "fieldname": "mrcno",
    "fieldtype": "Data",
-   "hidden": 1,
-   "in_list_view": 1,
    "label": "mrcNo",
    "read_only": 1
   },
   {
+   "fieldname": "column_break_deow",
+   "fieldtype": "Column Break"
+  },
+  {
    "fieldname": "lastpchsinvcno",
    "fieldtype": "Data",
-   "hidden": 1,
-   "in_list_view": 1,
    "label": "lastPchsInvcNo",
    "read_only": 1
   },
   {
    "fieldname": "lastsalercptno",
    "fieldtype": "Data",
-   "hidden": 1,
-   "in_list_view": 1,
    "label": "lastSaleRcptNo",
    "read_only": 1
   },
   {
    "fieldname": "lastinvcno",
    "fieldtype": "Data",
-   "hidden": 1,
-   "in_list_view": 1,
    "label": "lastInvcNo",
    "read_only": 1
   },
   {
    "fieldname": "lastsaleinvcno",
    "fieldtype": "Data",
-   "hidden": 1,
-   "in_list_view": 1,
    "label": "lastSaleInvcNo",
    "read_only": 1
   },
   {
    "fieldname": "lasttraininvcno",
    "fieldtype": "Data",
-   "hidden": 1,
-   "in_list_view": 1,
    "label": "lastTrainInvcNo",
    "read_only": 1
   },
   {
    "fieldname": "lastprofrminvcno",
    "fieldtype": "Data",
-   "hidden": 1,
-   "in_list_view": 1,
    "label": "lastProfrmInvcNo",
    "read_only": 1
   },
   {
    "fieldname": "lastcopyinvcno",
    "fieldtype": "Data",
-   "hidden": 1,
-   "in_list_view": 1,
    "label": "lastCopyInvcNo",
    "read_only": 1
   }
@@ -144,10 +125,10 @@
  "index_web_pages_for_search": 1,
  "issingle": 1,
  "links": [],
- "modified": "2026-02-28 11:17:29.035774",
+ "modified": "2026-03-01 12:55:02.874759",
  "modified_by": "Administrator",
  "module": "Havanozra",
- "name": "ZRA Information",
+ "name": "ZRA Details",
  "owner": "Administrator",
  "permissions": [
   {

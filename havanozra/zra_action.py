@@ -428,7 +428,7 @@ class HavanoZRALib:
         self.logger = frappe.logger("havano_zra")
     def get_config_value(self, fieldname: str) -> str:
         try:
-            doctype ="zra information"
+            doctype ="ZRA Details"
             value = frappe.db.get_single_value(doctype, fieldname)
             return value
         except Exception as e:
@@ -437,14 +437,15 @@ class HavanoZRALib:
     
     
     def update_zra_information(self, fieldname: str, new_value):
-        frappe.db.set_single_value("ZRA Information", fieldname, new_value)
-        frappe.db.commit()
+        doc = frappe.get_single("ZRA Details")
+        doc.set(fieldname, new_value)
+        doc.save()
 
         return {
             "status": "success",
             "message": f"{fieldname} updated successfully",
             "new_value": new_value
-    }
+        }
     
    
     def is_internet_available(self) -> bool:
@@ -529,7 +530,7 @@ class HavanoZRALib:
                     last_profrm_invc_no = data_info.get("lastProfrmInvcNo", "")
                     last_copy_invc_no = data_info.get("lastCopyInvcNo", "")
 
-                    self.update_zra_information("resultDt", str(req_date))
+                    self.update_zra_information("result_date", str(req_date))
                     self.update_zra_information("sdcId", str(sdc_id))
                     self.update_zra_information("mrcNo", str(mrc_no))
                     self.update_zra_information("lastPchsInvcNo", str(last_pchs_invc_no))
@@ -564,7 +565,7 @@ class HavanoZRALib:
                 json_obj = response.json()
                 req_date = json_obj.get("resultDt", "")
                 if req_date != "":
-                    self.update_zra_information("resultDt", str(req_date))
+                    self.update_zra_information("result_date", str(req_date))
                 self.logger.info(f"Standard Code Req. Status: {json_obj}")
         except Exception as e:
             frappe.log_error(frappe.get_traceback(), "Havano ZRA: Get Standard Codes")
@@ -591,7 +592,7 @@ class HavanoZRALib:
                 json_obj = response.json()
                 req_date = json_obj.get("resultDt", "")
                 if req_date != "":
-                    self.update_zra_information("resultDt", str(req_date))
+                    self.update_zra_information("result_date", str(req_date))
                 self.logger.info(f"Notice Status: {json_obj}")
         except Exception as e:
             frappe.log_error(frappe.get_traceback(), "Havano ZRA: Get Notices")
@@ -641,7 +642,7 @@ class HavanoZRALib:
                 self.save_item_cls_data(res_msg)
                 req_date = json_obj.get("resultDt", "")
                 if req_date != "":
-                    self.update_zra_information("resultDt", str(req_date))
+                    self.update_zra_information("result_date", str(req_date))
                 frappe.log_error(f"Havano ZRA Log",f"Get Class Code Req. Status: {json_obj}")
                 
             else:
@@ -671,7 +672,7 @@ class HavanoZRALib:
                 json_obj = response.json()
                 req_date = json_obj.get("resultDt", "")
                 if req_date != "":
-                    self.update_zra_information("resultDt", str(req_date))
+                    self.update_zra_information("result_date", str(req_date))
                 frappe.log_error(f"Havano ZRA Log",f"Get Customer Req. Status: {json_obj}")
                 
             else:
@@ -710,7 +711,7 @@ class HavanoZRALib:
                 json_obj = response.json()
                 req_date = json_obj.get("resultDt", "")
                 if req_date != "":
-                    self.update_zra_information("resultDt", str(req_date))
+                    self.update_zra_information("result_date", str(req_date))
                 frappe.log_error(f"Havano ZRA Log",f"Save Branch User Req. Status: {json_obj}")
                 
             else:
@@ -740,7 +741,7 @@ class HavanoZRALib:
                 json_obj = response.json()
                 req_date = json_obj.get("resultDt", "")
                 if req_date != "":
-                    self.update_zra_information("resultDt", str(req_date))
+                    self.update_zra_information("result_date", str(req_date))
                 frappe.log_error(f"Havano ZRA Log",f"Get Branches Req. Status: {json_obj}")
         except Exception as e:
             frappe.log_error(frappe.get_traceback(), "Havano ZRA: Get Branches")
@@ -780,7 +781,7 @@ class HavanoZRALib:
                 json_obj = response.json()
                 req_date = json_obj.get("resultDt", "")
                 if req_date != "":
-                    self.update_zra_information("resultDt", str(req_date))
+                    self.update_zra_information("result_date", str(req_date))
                 self.logger.info(f"Save Branch Customers Req. Status: {json_obj}")
             else:
                  frappe.log_error(f"Status Code: {response.status_code} - {response.text}", "Havano ZRA: Save Branch Customers Error")
@@ -841,7 +842,7 @@ class HavanoZRALib:
                     print(json_obj)
                     req_date = json_obj.get("resultDt", "")
                     if req_date != "":
-                        self.update_zra_information("resultDt", str(req_date))
+                        self.update_zra_information("result_date", str(req_date))
                     frappe.log_error(f"Havano ZRA Log",f"Save Item Req. Status: {json_obj}")
             else:
                  frappe.log_error(f"Status Code: {response.status_code} - {response.text}", "Havano ZRA: Save Item Error")
@@ -902,7 +903,7 @@ class HavanoZRALib:
                     print(json_obj)
                     req_date = json_obj.get("resultDt", "")
                     if req_date != "":
-                        self.update_zra_information("resultDt", str(req_date))
+                        self.update_zra_information("result_date", str(req_date))
                     frappe.log_error(f"Havano ZRA Log",f"Update Item Req. Status: {json_obj}")
             else:
                  frappe.log_error(f"Status Code: {response.status_code} - {response.text}", "Havano ZRA: Save Item Error")
@@ -931,7 +932,7 @@ class HavanoZRALib:
                 json_obj = response.json()
                 req_date = json_obj.get("resultDt", "")
                 if req_date != "":
-                    self.update_zra_information("resultDt", str(req_date))
+                    self.update_zra_information("result_date", str(req_date))
                 frappe.log_error(f"Havano ZRA Log",f"Get Items Req. Status: {json_obj}")
                 
             else:
@@ -961,7 +962,7 @@ class HavanoZRALib:
                 json_obj = response.json()
                 req_date = json_obj.get("resultDt", "")
                 if req_date != "":
-                    self.update_zra_information("resultDt", str(req_date))
+                    self.update_zra_information("result_date", str(req_date))
                 frappe.log_error(f"Havano ZRA Log",f"Get Items Req. Status: {json_obj}")
                 
             else:
@@ -996,7 +997,7 @@ class HavanoZRALib:
                 json_obj = response.json()
                 req_date = json_obj.get("resultDt", "")
                 if req_date != "":
-                    self.update_zra_information("resultDt", str(req_date))
+                    self.update_zra_information("result_date", str(req_date))
                 frappe.log_error(f"Havano ZRA Log",f"Save Composition Item Req. Status:  {json_obj}")
                 
             else:
@@ -1312,10 +1313,10 @@ class HavanoZRALib:
             if response.status_code == 200:
                 json_obj = response.json()
                 req_date = json_obj.get("resultDt", "")
-                res_sdcId =  json_obj.get("sdcId", "")
+                res_sdcId = json_obj.get('data', {}).get('sdcId')
                 if req_date != "":
-                    self.update_zra_information("resultDt", str(req_date))
-                    self.update_zra_information("sdcId", str(res_sdcId))
+                    self.update_zra_information("result_date", str(req_date))
+                    self.update_zra_information("sdcid", str(res_sdcId))
 
             if response.status_code != 200:
                 frappe.log_error(f"Invoice Status", f"Response: {response.text}")
@@ -1500,7 +1501,7 @@ class HavanoZRALib:
                 if self._is_result_succeeded(json.dumps(json_obj)):
                     req_date = json_obj.get("resultDt", "")
                     if req_date != "":
-                        self.update_zra_information("resultDt", req_date)
+                        self.update_zra_information("result_date", req_date)
                 frappe.log_error(f"Save Purchase Item Req. Status", f"Response: {res_msg}")
 
             else:
@@ -1646,7 +1647,7 @@ class HavanoZRALib:
                 if self._is_result_succeeded(json.dumps(json_obj)):
                     req_date = json_obj.get("resultDt", "")
                     if req_date != "":
-                        self.update_zra_information("resultDt", req_date)
+                        self.update_zra_information("result_date", req_date)
                 frappe.log_error(f"Save Stock Item Req. Status", f"Response: {res_msg}")
                 
             else:
@@ -1718,7 +1719,7 @@ class HavanoZRALib:
                 if self._is_result_succeeded(json.dumps(json_obj)):
                     req_date = json_obj.get("resultDt", "")
                     if req_date != "":
-                        self.update_zra_information("resultDt", req_date)
+                        self.update_zra_information("result_date", req_date)
                 frappe.log_error(f"Save Stock Master Req. Status", f"Response: {res_msg}")
                 
             else:
@@ -1742,7 +1743,7 @@ class HavanoZRALib:
         # ===============Prepare Credit Note========
         tpin = self.get_config_value("tpin")
         branch_id = self.get_config_value("branch_id")
-        org_sdc_id = self.get_config_value("sdcId")
+        org_sdc_id = self.get_config_value("sdcid")
         sales_type_code = "N"
         receipt_type_code = "R"  # R for Credit Note/Receipt
         payment_type_code = "01"
@@ -1838,11 +1839,11 @@ class HavanoZRALib:
                 pkg_unit_code = get_text("PkgUnitCd")
                 package = int(get_text("Pkg"))
                 qty_unit_code = get_text("QtyUnitCd")
-                qty = Decimal(get_text("Qty"))
-                price = Decimal(get_text("Prc"))
-                supply_amount = Decimal(get_text("SplyAmt"))
+                qty = abs(Decimal(get_text("Qty")))
+                price = abs(Decimal(get_text("Prc")))
+                supply_amount = abs(Decimal(get_text("SplyAmt")))
                 discount_rate = Decimal(get_text("DcRt"))
-                discount_amount = Decimal(get_text("DcAmt"))
+                discount_amount = abs(Decimal(get_text("DcAmt")))
                 insurance_company_code = get_text("IsrccCd")
                 insurance_company_name = get_text("IsrccNm")
                 insurance_company_rate = Decimal(get_text("IsrcRt"))
@@ -1851,15 +1852,15 @@ class HavanoZRALib:
                 excise_tax_cat_code = get_text("ExciseTxCatCd")
                 tl_cat_code = get_text("TlCatCd")
                 ipl_cat_code = get_text("IplCatCd")
-                vat_taxbl_amt = Decimal(get_text("VatTaxblAmt"))
-                vat_amt = Decimal(get_text("VatAmt"))
+                vat_taxbl_amt = abs(Decimal(get_text("VatTaxblAmt")))
+                vat_amt = abs(Decimal(get_text("VatAmt")))
                 excise_taxbl_amt = Decimal(get_text("ExciseTaxblAmt"))
                 tl_taxbl_amt = Decimal(get_text("TlTaxblAmt"))
                 ipl_taxbl_amt = Decimal(get_text("IplTaxblAmt"))
-                ipl_amt = Decimal(get_text("IplAmt"))
-                tl_amt = Decimal(get_text("TlAmt"))
+                ipl_amt = abs(Decimal(get_text("IplAmt")))
+                tl_amt = abs(Decimal(get_text("TlAmt")))
                 excise_tx_amt = Decimal(get_text("ExciseTxAmt"))
-                tot_amount_item = Decimal(get_text("TotAmt"))
+                tot_amount_item = abs(Decimal(get_text("TotAmt")))
 
                 tot_amount += tot_amount_item
                 
@@ -1965,6 +1966,7 @@ class HavanoZRALib:
                 taxRtC2=tax_rate_c2,
                 taxRtC3=tax_rate_c3,
                 taxRtD=tax_rate_d,
+                tlAmt=Decimal('0'), 
                 taxRtRvat=tax_rate_rvat,
                 taxRtE=tax_rate_e,
                 taxRtF=tax_rate_f,
@@ -2019,7 +2021,9 @@ class HavanoZRALib:
                 return obj
 
             payload = serialize(credit_note)
-            
+            #payload = json.dumps(payload, indent=4) 
+            print(payload)
+            #return ""
             # Send Invoice (Endpoint is same for Sales and Credit Note)
             endpoint = "trnsSales/saveSales"
             url = self.get_server() + endpoint
@@ -2032,7 +2036,7 @@ class HavanoZRALib:
                 if self._is_result_succeeded(json.dumps(json_obj)):
                     req_date = json_obj.get("resultDt", "")
                     if req_date != "":
-                        self.update_zra_information("resultDt", req_date)
+                        self.update_zra_information("result_date", req_date)
                 frappe.log_error(f"Send CreditNote Req. Status for {cis_invoice_no}", f"Response: {res_msg}")
                 
             else:

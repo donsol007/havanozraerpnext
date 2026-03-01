@@ -290,15 +290,15 @@ def push_invoice_to_zra(doc, method):
             
             # Calculate VAT (tax is inclusive in price)
 
-            vat_amt = item.amount * tax_rate / (1 + tax_rate)
+            vat_amt = abs(item.amount) * tax_rate / (1 + tax_rate)
             print(item.amount)
-            item_total = round(item.amount,4)
+            item_total = abs(round(item.amount,4))
             vat_amt = round(vat_amt,4)
             print(vat_amt)
             
             
             # If tax exclusive, logic changes, but following VB 'Inclusive' assumption:
-            supply_amount = item.amount - vat_amt
+            supply_amount = abs(item.amount) - vat_amt
             supply_amount = round(supply_amount,4)
             # Defaults for non-VAT taxes (as per VB guide)
             excise_taxbl_amt = "0.0"

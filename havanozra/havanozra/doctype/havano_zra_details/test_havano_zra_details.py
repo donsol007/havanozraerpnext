@@ -5,5 +5,5 @@
 from frappe.tests.utils import FrappeTestCase
 
 
-class TestZRAInformation(FrappeTestCase):
+class TestHavanoZRADetails(FrappeTestCase):
 	pass

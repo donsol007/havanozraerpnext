@@ -12,58 +12,8 @@
  "indicator_color": "green",
  "is_hidden": 0,
  "label": "ZRA",
- "links": [
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Google Services",
-   "link_count": 4,
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Card Break"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Google Settings",
-   "link_count": 0,
-   "link_to": "Google Settings",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Google Contacts",
-   "link_count": 0,
-   "link_to": "Google Contacts",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Google Calendar",
-   "link_count": 0,
-   "link_to": "Google Calendar",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  },
-  {
-   "hidden": 0,
-   "is_query_report": 0,
-   "label": "Google Drive",
-   "link_count": 0,
-   "link_to": "Google Drive",
-   "link_type": "DocType",
-   "onboard": 0,
-   "type": "Link"
-  }
- ],
- "modified": "2026-02-20 21:52:10.693327",
+ "links": [],
+ "modified": "2026-03-01 12:29:43.375262",
  "modified_by": "Administrator",
  "module": "Havanozra",
  "name": "ZRA",
@@ -80,7 +30,8 @@
    "color": "Grey",
    "doc_view": "List",
    "label": "Havano ZRA Settings",
-   "link_to": "ZRA Information",
+   "link_to": "ZRA Details",
+   "stats_filter": "[]",
    "type": "DocType"
   }
  ],
