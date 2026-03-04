@@ -434,7 +434,7 @@ class HavanoZRALib:
                     fields=["*"],
                     limit=1)
             if record and fieldname in record[0]:
-                print(record[0][fieldname])
+                #print(record[0][fieldname])
                 return record[0][fieldname]
             else:
                 return None
