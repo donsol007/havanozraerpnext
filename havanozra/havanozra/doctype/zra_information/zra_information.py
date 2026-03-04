@@ -5,5 +5,5 @@
 from frappe.model.document import Document
 
 
-class ZRADetails(Document):
+class ZRAInformation(Document):
 	pass

@@ -13,7 +13,7 @@
  "is_hidden": 0,
  "label": "ZRA",
  "links": [],
- "modified": "2026-03-01 12:29:43.375262",
+ "modified": "2026-03-04 09:28:16.885403",
  "modified_by": "Administrator",
  "module": "Havanozra",
  "name": "ZRA",
@@ -30,7 +30,7 @@
    "color": "Grey",
    "doc_view": "List",
    "label": "Havano ZRA Settings",
-   "link_to": "ZRA Details",
+   "link_to": "ZRA Information",
    "stats_filter": "[]",
    "type": "DocType"
   }

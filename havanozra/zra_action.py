@@ -428,16 +428,35 @@ class HavanoZRALib:
         self.logger = frappe.logger("havano_zra")
     def get_config_value(self, fieldname: str) -> str:
         try:
-            doctype ="ZRA Details"
-            value = frappe.db.get_single_value(doctype, fieldname)
-            return value
+            doctype ="ZRA Information"
+            record = frappe.get_all(
+                    doctype,
+                    fields=["*"],
+                    limit=1)
+            if record and fieldname in record[0]:
+                print(record[0][fieldname])
+                return record[0][fieldname]
+            else:
+                return None
+            #return value
         except Exception as e:
             frappe.log_error(frappe.get_traceback(),f"Error fetching {fieldname} from {doctype}: {e}")
             return None
     
     
     def update_zra_information(self, fieldname: str, new_value):
-        doc = frappe.get_single("ZRA Details")
+        record = frappe.get_all(
+        "ZRA Information",
+        fields=["name"],
+        order_by="creation asc",
+        limit=1
+        )
+
+        if not record:
+            frappe.throw("No record found in ZRA Details")
+
+        # Load the document
+        doc = frappe.get_doc("ZRA Information", record[0].name)
         doc.set(fieldname, new_value)
         doc.save()
 
